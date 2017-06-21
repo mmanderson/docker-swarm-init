@@ -1,0 +1,98 @@
+- name: Add Docker apt key
+  apt_key:
+    keyserver: hkp://p80.pool.sks-keyservers.net:80
+    id: 58118E89F3A912897C070ADBF76221572C52609D
+  tags: [docker]
+
+- name: Add Docker repository and update apt cache
+  apt_repository:
+    repo: deb https://apt.dockerproject.org/repo ubuntu-xenial main
+    update_cache: yes
+    state: present
+  tags: [docker]
+
+- name: Docker is present
+  apt:
+    name: docker-engine
+    state: present
+    force: yes
+  tags: [docker]
+
+- name: Enable the Docker daemon as a service and start it.
+  service:
+    name: docker.service
+    state: started
+    enabled: yes
+  tags: [docker]
+
+- name: Ensure Docker drop-in config directory exists
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: 0644
+  tags: [docker]
+
+- name: Copy Docker config template 
+  template:
+    src: docker.conf.template
+    dest: /etc/systemd/system/docker.service.d/docker.conf
+    owner: root
+    group: root
+    mode: 0644
+  when: "'docker_swarm_node' in group_names"
+  register: config_result
+  tags: [docker]
+
+- name: Systemd reload
+  command: systemctl daemon-reload
+  when: config_result|changed
+  tags: [docker]
+
+- name: Service is restarted
+  service:
+    name=docker
+    state=restarted
+  when: config_result|changed
+  tags: [docker]
+
+- name: Python-pip is present
+  apt:
+    name: python-pip
+    state: present
+  tags: [docker]
+
+- name: Python-pip is up to date
+  pip:
+    name: pip
+    extra_args: --upgrade
+  tags: [docker]
+
+- name: Docker-py is present
+  pip: name=docker-py version=1.10.3 state=present
+  tags: [docker]
+
+- name: Get the username running the deploy
+  local_action: command whoami
+  register: local_user
+  become: no
+  tags: [docker]
+
+- name: ansible user is in docker group
+  user:
+    name: "{{ ansible_user }}"
+    append: yes
+    groups: docker
+    state: present
+  when: (ansible_user is defined) and (not ansible_user == "root")
+  tags: [docker]
+
+- name: user is in docker group
+  user:
+    name: "{{ local_user.stdout }}"
+    append: yes
+    groups: docker
+    state: present
+  when: (ansible_user is not defined) and (local_user is defined) and (local_user|changed) and (not local_user.stdout == "root")
+  tags: [docker]

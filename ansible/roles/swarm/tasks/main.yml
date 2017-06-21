@@ -1,0 +1,113 @@
+- name: Check if "Swarm Mode" is enabled.
+  shell: docker info
+  changed_when: False
+  register: docker_info
+  tags: [swarm]
+
+- name: Init "Swarm Mode" on the first manager.
+  shell: docker swarm init
+        --listen-addr 0.0.0.0:{{ docker_swarm_port }}
+        --advertise-addr {{ docker_swarm_addr }}:{{ docker_swarm_port }}
+  when: "docker_info.stdout.find('Swarm: active') == -1
+    and inventory_hostname == groups['docker_swarm_manager'][0]"
+  tags: [swarm]
+
+- name: Check if swarm_network has been created
+  shell: docker network ls
+  register: swarm_network
+  when: "inventory_hostname == groups['docker_swarm_manager'][0]"
+  ignore_errors: True
+  tags: [swarm]
+
+- name: Add swarm_network
+  shell: docker network create --driver overlay --subnet 172.170.0.0/16 swarm_network
+  when: "inventory_hostname == groups['docker_swarm_manager'][0]
+    and swarm_network.stdout.find('swarm_network') == -1"
+
+- name: Get the worker join-token.
+  shell: docker swarm join-token -q worker
+  changed_when: False
+  register: docker_worker_token
+  delegate_to: "{{ groups['docker_swarm_manager'][0] }}"
+  delegate_facts: True
+  when: "'docker_swarm_worker' in group_names"
+  tags: [swarm]
+
+- name: Get the manager join-token.
+  shell: docker swarm join-token -q manager
+  changed_when: False
+  register: docker_manager_token
+  delegate_to: "{{ groups['docker_swarm_manager'][0] }}"
+  delegate_facts: True
+  when: "'docker_swarm_manager' in group_names
+    and inventory_hostname != groups['docker_swarm_manager'][0]"
+  tags: [swarm]
+
+- name: Declare the address of the first Swarm manager as a fact.
+  set_fact:
+    docker_manager_address: "{{ hostvars[groups['docker_swarm_manager'][0]]['ansible_host'] }}"
+
+- name: Join the pending Swarm worker nodes.
+  shell: docker swarm join
+        --listen-addr 0.0.0.0:{{ docker_swarm_port }}
+        --advertise-addr {{ docker_swarm_addr }}:{{ docker_swarm_port }}
+        --token "{{ docker_worker_token.stdout }}"
+        {{ docker_manager_address }}:{{ docker_swarm_port }}
+  changed_when: False
+  when: "docker_info.stdout.find('Swarm: active') == -1
+    and docker_info.stdout.find('Swarm: pending') == -1
+    and 'docker_swarm_worker' in group_names"
+  tags: [swarm]
+
+- name: Join the pending Swarm manager nodes.
+  shell: docker swarm join
+        --listen-addr 0.0.0.0:{{ docker_swarm_port }}
+        --advertise-addr {{ docker_swarm_addr }}:{{ docker_swarm_port }}
+        --token "{{ docker_manager_token.stdout }}"
+        {{ docker_manager_address }}:{{ docker_swarm_port }}
+  changed_when: False
+  when: "docker_info.stdout.find('Swarm: active') == -1
+    and docker_info.stdout.find('Swarm: pending') == -1
+    and 'docker_swarm_manager' in group_names
+    and inventory_hostname != groups['docker_swarm_manager'][0]"
+  tags: [swarm]
+
+- name: Check for dev secrets
+  shell: docker secret ls
+  register: secrets
+  when: "inventory_hostname == groups['docker_swarm_manager'][0]"
+  ignore_errors: True
+  tags: [swarm]
+
+- name: copy dev ca files
+  copy:
+    src: "{{ item }}"
+    dest: /tmp
+  with_items:
+    - ca.crt
+    - ca.key
+  when: "(inventory_hostname == groups['docker_swarm_manager'][0]) and 
+    (secrets.stdout.find('ca.crt') == -1 or secrets.stdout.find('ca.key') == -1)"
+  tags: [swarm]
+    
+- name: Install dev ca.crt secret
+  shell: docker secret create ca.crt /tmp/ca.crt
+  when: "inventory_hostname == groups['docker_swarm_manager'][0] and 
+    secrets.stdout.find('ca.crt') == -1"
+  tags: [swarm]
+
+- name: Install dev ca.key secret
+  shell: docker secret create ca.key /tmp/ca.key
+  when: "inventory_hostname == groups['docker_swarm_manager'][0] and 
+    secrets.stdout.find('ca.key') == -1"
+  tags: [swarm]
+
+- name: remove dev ca files
+  file:
+    path: "/tmp/{{ item }}"
+    state: absent
+  with_items:
+    - ca.crt
+    - ca.key
+  tags: [swarm]
+    

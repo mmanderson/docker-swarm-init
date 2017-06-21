@@ -1,0 +1,11 @@
+# Finder
+.DS_Store
+
+# Vagrant cache
+.vagrant
+
+# Ansible retry files
+*.retry
+
+# Generated webstack file
+website-stack.yml

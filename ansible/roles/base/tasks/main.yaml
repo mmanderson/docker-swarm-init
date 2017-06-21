@@ -1,0 +1,26 @@
+- name: Upgrade distribution packages
+  apt:
+    update_cache: yes
+    upgrade: dist
+  register: apt_result
+  tags: [base]
+
+- name: Restart machine
+  shell: sleep 2 && reboot
+  async: 1
+  poll: 0
+  ignore_errors: true
+  when: apt_result|changed
+  tags: [base]
+
+- name: Wait for server to come online
+  local_action: wait_for host={{ ansible_host }} port=22 delay=10 state=started timeout=120
+  become: false
+  when: apt_result|changed
+  tags: [base]
+
+- name: Remove unneeded packages
+  apt:
+    update_cache: yes
+    autoremove: yes
+  tags: [base]

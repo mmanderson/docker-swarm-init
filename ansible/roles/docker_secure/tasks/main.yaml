@@ -1,0 +1,181 @@
+# Find out if being run in a local test environment or as the jenkins user on
+# Jenkins master
+- name: Get current user
+  become: no
+  local_action: command whoami
+  register: current_user
+  tags: [docker_secure]
+
+# Create all secure files and keys locally
+- name: Make sure certificates folder exists locally
+  become: no
+  file:
+    dest: "{{ local_cert_dir }}"
+    state: directory
+    recurse: yes
+    mode: 0755
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Create CA key and cert
+  become: no
+  command: openssl req -new -newkey rsa:4096 -days 365 -nodes -x509
+    -subj "/C=US/ST=Utah/L=Sandy/O=OpenWest/CN=demo"
+    -keyout ca.key
+    -out ca.crt
+  args:
+    chdir: "{{ local_cert_dir }}"
+    creates: "{{ local_cert_dir }}/ca.crt"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Create server key
+  become: no
+  command: openssl genrsa -out {{ inventory_hostname }}.key 4096
+  args:
+    chdir: "{{ local_cert_dir }}"
+    creates: "{{ local_cert_dir }}/{{ inventory_hostname }}.key"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Create server CSR
+  become: no
+  command: openssl req -subj "/CN={{ inventory_hostname }}" -nodes -new
+    -key {{ inventory_hostname }}.key -out {{ inventory_hostname }}.csr
+  args:
+    chdir: "{{ local_cert_dir }}"
+    creates: "{{ local_cert_dir }}/{{ inventory_hostname }}.csr"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Make sure extfile exists for server key signing step
+  become: no
+  lineinfile:
+    dest: "{{ local_cert_dir }}/{{ inventory_hostname }}.cfg"
+    create: yes
+    state: present
+    regexp: '^subjectAltName'
+    line: 'subjectAltName = DNS:{{ inventory_hostname }},IP:{{ hostvars[inventory_hostname]["ansible_host"] }},IP:127.0.0.1'
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Check if serial file exists and initialize it if not
+  become: no
+  shell: echo "01" > {{ local_cert_dir }}/ca.srl
+  args:
+    creates: "{{ local_cert_dir }}/ca.srl"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Sign server key with CA key and cert
+  become: no
+  command: openssl x509 -req -days 365
+    -CA ca.crt -CAkey ca.key -CAserial ca.srl
+    -in {{ inventory_hostname }}.csr -out {{ inventory_hostname }}.crt
+    -extfile {{ inventory_hostname }}.cfg
+  args:
+    chdir: "{{ local_cert_dir }}"
+    creates: "{{ local_cert_dir }}/{{ inventory_hostname }}.crt"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Create client key
+  become: no
+  command: openssl genrsa -out client.key 4096
+  args:
+    chdir: "{{ local_cert_dir }}"
+    creates: "{{ local_cert_dir }}/client.key"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Create client CSR
+  become: no
+  command: openssl req -subj "/CN=swarmclient.net" -nodes -new
+    -key client.key -out client.csr
+  args:
+    chdir: "{{ local_cert_dir }}"
+    creates: "{{ local_cert_dir }}/client.csr"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Make sure extfile exists for client key signing step
+  become: no
+  lineinfile:
+    dest: "{{ local_cert_dir }}/client.cfg"
+    create: yes
+    state: present
+    regexp: '^extendedKeyUsage'
+    line: 'extendedKeyUsage = clientAuth'
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Sign client key with CA key and cert
+  become: no
+  command: openssl x509 -req -days 365
+    -CA ca.crt -CAkey ca.key -CAserial ca.srl
+    -in client.csr -out client.crt
+    -extfile client.cfg
+  args:
+    chdir: "{{ local_cert_dir }}"
+    creates: "{{ local_cert_dir }}/client.crt"
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Make sure all certs and keys have correct permissions
+  become: no
+  file:
+    dest: "{{ local_cert_dir }}/{{ item.name }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { name: 'ca.crt', mode: "0444" }
+    - { name: '{{ inventory_hostname }}.crt', mode: "0444" }
+    - { name: 'client.crt', mode: "0444" }
+    - { name: 'ca.key', mode: "0400" }
+    - { name: '{{ inventory_hostname }}.key', mode: "0400" }
+    - { name: 'client.key', mode: "0400" }
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+# Set up .docker dir for simpler docker tls commandline
+- name: Create .docker dir
+  become: no
+  file:
+    dest: "{{ local_dot_docker_dir }}"
+    state: directory
+    recurse: yes
+    mode: 0744
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+- name: Copy cert files to .docker
+  become: no
+  copy:
+    src: "{{ local_cert_dir }}/{{ item.src }}"
+    dest: "{{ local_dot_docker_dir }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { src: 'ca.crt', dest: 'ca.pem', mode: "0444" }
+    - { src: 'client.crt', dest: 'cert.pem', mode: "0444" }
+    - { src: 'client.key', dest: 'key.pem', mode: "0400" }
+  delegate_to: 127.0.0.1
+  tags: [docker_secure]
+
+# Create appropriate folders and copy server files to remotes
+- name: Make sure certificates folder exists
+  file:
+    dest: "{{ remote_cert_dir }}"
+    state: directory
+    recurse: yes
+    mode: 0755
+  tags: [docker_secure]
+
+- name: Copy necessary files
+  copy:
+    src: "{{ local_cert_dir }}/{{ item.name }}"
+    dest: "{{ remote_cert_dir }}/{{ item.name }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - { name: 'ca.crt', mode: "0444" }
+    - { name: '{{ inventory_hostname }}.crt', mode: "0444" }
+    - { name: '{{ inventory_hostname }}.key', mode: "0400" }
+  tags: [docker_secure]

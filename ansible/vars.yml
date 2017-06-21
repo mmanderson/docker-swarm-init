@@ -1,0 +1,5 @@
+docker_swarm_addr: "{{ ansible_host }}"
+docker_swarm_port: 2377
+local_cert_dir: ~/docker_certificates
+local_dot_docker_dir: ~/.docker
+remote_cert_dir: /etc/docker/certificates

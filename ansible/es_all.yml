@@ -1,0 +1,11 @@
+- hosts: elastic
+  become: yes
+  vars_files:
+    - vars.yml
+  roles:
+    - role: geerlingguy.java
+    - role: elasticsearch
+    - role: kibana
+    - role: esnginx
+    - role: logstash
+    

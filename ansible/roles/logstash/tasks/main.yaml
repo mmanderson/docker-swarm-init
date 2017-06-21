@@ -1,0 +1,75 @@
+- name: Add Elasticsearch Key
+  apt_key:
+    keyserver: hkp://p80.pool.sks-keyservers.net:80
+    id: 46095ACC8548582C1A2699A9D27D666CD88E42B4
+  tags: [logstash]
+
+- name: Add Logstash repository and update apt cache
+  apt_repository:
+    repo: deb http://artifacts.elastic.co/packages/5.x/apt stable main
+    update_cache: yes
+    state: present
+  tags: [logstash]
+
+- name: Logstash installed
+  apt:
+    name: logstash
+    state: present
+    force: yes
+  tags: [logstash]
+
+- name: Copy conf.d dir
+  copy: 
+    src: conf.d
+    dest: /etc/logstash/
+  register: confd_result
+  tags: [logstash]
+
+- name: Copy Patterns dir
+  copy: 
+    src: patterns
+    dest: /usr/share/logstash/
+    owner: logstash
+    group: logstash
+  register: patterns_result
+  tags: [logstash]
+
+- name: Ensure cert directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+  with_items:
+    - /etc/pki/tls/certs
+    - /etc/pki/tls/private
+  tags: [logstash]
+
+- name: Copy TLS cert files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { src: 'owelk-logstash-forwarder.crt', dest: '/etc/pki/tls/certs/' }
+    - { src: 'owelk-logstash-forwarder.key', dest: '/etc/pki/tls/private/' }
+  tags: [logstash]
+
+- name: Enable the Logstash service and start it.
+  service:
+    name: logstash.service
+    state: started
+    enabled: yes
+  tags: [logstash]
+
+- name: Systemd reload
+  command: systemctl daemon-reload
+  when: (confd_result|changed) or (patterns_result|changed)
+  tags: [logstash]
+
+- name: Service is restarted
+  service:
+    name: logstash
+    state: restarted
+  when: (confd_result|changed) or (patterns_result|changed)
+  tags: [logstash]
+

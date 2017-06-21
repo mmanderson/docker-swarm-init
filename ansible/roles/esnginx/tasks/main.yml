@@ -1,0 +1,31 @@
+- name: Nginx is present
+  apt:
+    name: nginx
+    state: present
+    force: yes
+  tags: [nginx]
+
+- name: Enable nginx service and start it
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+  ignore_errors: True
+  tags: [nginx]
+
+- name: Copy config files
+  copy: 
+    src: "{{ item }}"
+    dest: /etc/nginx/
+  with_items: 
+    - nginx.conf
+  register: config_result
+  tags: [nginx]
+
+- name: Reload Configuration
+  service:
+    name: nginx
+    state: restarted
+  when: config_result|changed
+  tags: [nginx]
+  
