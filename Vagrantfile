@@ -10,32 +10,32 @@ Vagrant.configure(2) do |config|
   config.vm.provision :shell, path: "bootstrap.sh"
 
    # Elastic stack for logging
-  config.vm.define "local-elasticstack" do |node|
-    node.vm.hostname = "local-elasticstack"
-    node.vm.network "private_network", ip: "10.100.199.102"
+  config.vm.define "local-es" do |node|
+    node.vm.hostname = "local-es"
+    node.vm.network "private_network", ip: "10.10.99.102"
     node.vm.provider "virtualbox" do |v|
-      v.name = "local-elasticstack"
+      v.name = "local-es"
       v.cpus = 2
     end
   end
 
   # Swarm Master nodes
   (0..2).each do |i|
-    config.vm.define "local-swarm-m#{i}" do |node|
-      node.vm.hostname = "local-swarm-m#{i}"
-      node.vm.network "private_network", ip: "10.100.199.21#{i}"
+    config.vm.define "local-m#{i}" do |node|
+      node.vm.hostname = "local-m#{i}"
+      node.vm.network "private_network", ip: "10.10.99.21#{i}"
       node.vm.provider "virtualbox" do |v|
-        v.name = "local-swarm-m#{i}"
+        v.name = "local-m#{i}"
       end
     end
   end
 
   # Swarm worker node
-  config.vm.define "local-swarm-n0" do |node|
-    node.vm.hostname = "local-swarm-n0"
-    node.vm.network "private_network", ip: "10.100.199.220"
+  config.vm.define "local-w0" do |node|
+    node.vm.hostname = "local-w0"
+    node.vm.network "private_network", ip: "10.10.99.220"
     node.vm.provider "virtualbox" do |v|
-      v.name = "local-swarm-n0"
+      v.name = "local-w0"
     end
   end
 

@@ -1,26 +1,26 @@
-local-swarm-m0     ansible_host=10.100.199.210
-local-swarm-m1     ansible_host=10.100.199.211
-local-swarm-m2     ansible_host=10.100.199.212
-local-swarm-n0     ansible_host=10.100.199.220
-local-elasticstack ansible_host=10.100.199.102
+local-es    ansible_host=10.10.99.102
+local-m0    ansible_host=10.10.99.210
+local-m1    ansible_host=10.10.99.211
+local-m2    ansible_host=10.10.99.212
+local-w0    ansible_host=10.10.99.220
 
 [elastic]
-local-elasticstack
+local-es
 
 [docker_swarm_manager]
-local-swarm-m0
-local-swarm-m1
-local-swarm-m2
+local-m0
+local-m1
+local-m2
 
 [docker_swarm_worker]
-local-swarm-n0
+local-w0
 
 [docker_swarm_node]
-local-swarm-m0
-local-swarm-m1
-local-swarm-m2
-local-swarm-n0
+local-m0
+local-m1
+local-m2
+local-w0
 
 [all:vars]
-elastic_server=10.100.199.102
+elastic_server=10.10.99.102
 es_heap_size=1g

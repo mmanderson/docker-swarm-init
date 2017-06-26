@@ -69,8 +69,8 @@
     extra_args: --upgrade
   tags: [docker]
 
-- name: Docker-py is present
-  pip: name=docker-py version=1.10.3 state=present
+- name: docker-compose is present
+  pip: name=docker-compose state=present
   tags: [docker]
 
 - name: Get the username running the deploy

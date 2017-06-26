@@ -67,9 +67,9 @@ To support the swarm infrastructure we are installing a few different services.
 
 * Docker swarm - a cluster of Docker engines that provide a standard way of deploying, monitoring and updating our services so that we can run the exact same image in development, referrences and production
 
-### Standing up a local swarm and services
+### Standing up a local swarm and service
 
-To stand up a local swarm, there is a shell script (`local_swarm.sh`) that can be run to create the virtual machines, do some initial provisioning including copying your public ssh key to the root user's .ssh/authorized_keys file so that the script can complete the ansible provisioning in the virtual machines.  Once the virtual machines have been created, the script then runs the ansible playbooks to complete provisioning the elastic stack and the docker swarm.  Each of these steps can be run independently to bring up the swarm or update services running in it as described below.  If you run the `local_swarm.sh` script you can also skip to the end and [Verify services](#verifying-services)
+To stand up a local swarm, there is a shell script (`local_swarm.sh`) that can be run to create the virtual machines, do some initial provisioning including copying your public ssh key to the root user's .ssh/authorized_keys file so that the script can complete the ansible provisioning in the virtual machines.  Once the virtual machines have been created, the script then runs the ansible playbooks to complete provisioning the elastic stack and the docker swarm.  Each of these steps can be run independently to bring up the swarm or update services running in it as described below.  If you run the `local_swarm.sh` script you can also skip to the end to [Verifying the elastic stack](#verifying-the-elastic-stack) and [Verify the docker swarm](#verify-the-docker-swarm)
 
 # Individual installation instructions
 
@@ -89,7 +89,12 @@ followed by
 
 You can also access the individual machines by running
 
-    $ vagrant ssh [local-swarm-m0|local-swarm-m1|local-swarm-m2|local-swarm-n0|local-elasticstack]
+    $ vagrant ssh [local-m0|local-m1|local-m2|local-w0|local-es]
+
+or
+    $ ssh vagrant@10.10.99.[102,210,211,212,220]
+
+The password for the default `vagrant` user is `vagrant`
 
 To shutdown the VMs use
 
@@ -101,11 +106,11 @@ To completely remove the VMs from your system use
 
 If you haven't set these machines up before, or have changed the directory that you are running from, you might need to ensure that the ssh keys for the machines have been added to your known_hosts file.  You can do that by sshing to each of the machines and accepting the credentials for that machine.  The machines are avaliable at the following addresses:
 
-    10.100.199.102 - Elastic stack
-    10.100.199.210 - Docker swarm master 0
-    10.100.199.211 - Docker swarm master 1
-    10.100.199.212 - Docker swarm master 2
-    10.100.199.220 - Docker swarm worker 0
+    10.10.99.102 - Elastic stack
+    10.10.99.210 - Docker swarm master 0
+    10.10.99.211 - Docker swarm master 1
+    10.10.99.212 - Docker swarm master 2
+    10.10.99.220 - Docker swarm worker 0
 
 ### Ansible playbook to set up Elastic Stack components
 
@@ -125,9 +130,11 @@ Once the playbook completes, you should be able check the status by following th
 
 ### Verifying the elastic stack
 
-Once you have used ansible to provision the services, you should be able to access the nginx "front-end" server to verify the services.  For the local environment, you can access it at 10.100.199.102.  Switch that address in the links below to the appropriate one for the environment you provisioned and deployed into.
+Once you have used ansible to provision the services, you should be able to access the nginx "front-end" server to verify the services.  For the local environment, you can access it at 10.10.99.102.  Switch that address in the links below to the appropriate one for the environment you provisioned and deployed into.
 
-[http://10.100.199.102](http://10.100.199.102) - will access the main Kibana page.  
+[http://10.10.99.102](http://10.10.99.102) - will access the main Kibana page.
+
+**NOTE:** You won't be able to set up an index until you have generated some log data into the ElasticStack from the swarm.
 
 ### Ansible playbook to set up the docker swarm
 
@@ -138,6 +145,8 @@ Depending on the user that you login to the machines as, you can run the playboo
     $ ansible-playbook -i ansible/hosts/[dev.yml|prod.yml] --user root ansible/swarm_all.yml
 
 If you will be using ssh as yourself, you don't have to specify the `--user`parameter.  If a password is required to login via ssh, you can specify the `--ask-pass` parameter to have ansible prompt you for the password.  If sudo is set up to require a password, you can use the `--ask-become-pass` parameter to have ansible prompt for your password on the machines you are running the playbook against when it runs the sudo command on those machines.
+
+### Verify the docker swarm
 
 Once the playbook completes, you should be able check the swarm status by sshing into one of the swarm managers (see the list of machines in the docker_swarm_manager section of the appropriate yml file under ansible/hosts) and running
 
@@ -157,9 +166,9 @@ to see the status of the individual services and where they are running in the s
 
 The docker swarm nodes are also set up to allow remote administration.  If you have docker installed on the host, you can also try the following commands against local-swarm-m0:
 
-    $ docker -H tcp:10.100.199.210:2375 docker node ls
-    $ docker -H tcp:10.100.199.210:2375 docker service ls
-    $ docker -H tcp:10.100.199.210:2375 docker service ps <name>
+    $ docker -H tcp:10.10.99.210:2375 docker node ls
+    $ docker -H tcp:10.10.99.210:2375 docker service ls
+    $ docker -H tcp:10.10.99.210:2375 docker service ps <name>
 
 ## Links
 

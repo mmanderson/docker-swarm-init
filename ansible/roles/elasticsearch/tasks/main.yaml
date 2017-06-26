@@ -13,7 +13,7 @@
 
 - name: Elasticsearch installed
   apt:
-    name: elasticsearch=5.4.1
+    name: elasticsearch
     state: present
     force: yes
   tags: [elasticsearch]

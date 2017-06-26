@@ -13,7 +13,7 @@
 
 - name: Kibana installed
   apt:
-    name: kibana=5.4.1
+    name: kibana
     state: present
     force: yes
   tags: [kibana]
