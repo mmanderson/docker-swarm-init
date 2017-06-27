@@ -57,6 +57,8 @@ If you haven't installed the following ansible role you will need to install the
 
     $ sudo ansible-galaxy install geerlingguy.java
 
+You will also need to have `ssh` and `sshpass` installed  to allow ansible to use passwords for it's ssh connections.  The scripts can be updated to use ssh keys but since I wasn't sure if everyone had those set it, I used the existing vagrant user for the VMs.
+
 ------------
 
 ## What will be installed
