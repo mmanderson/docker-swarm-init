@@ -4,7 +4,7 @@
 Vagrant.configure(2) do |config|
   config.vm.box = "gbarbieru/xenial"
   config.vm.provider "virtualbox" do |v|
-    v.memory = 2048
+    v.memory = 1024
   end
   config.vm.synced_folder "~/.ssh", "/vagrant/root/.ssh"
   config.vm.provision :shell, path: "bootstrap.sh"
@@ -16,6 +16,7 @@ Vagrant.configure(2) do |config|
     node.vm.provider "virtualbox" do |v|
       v.name = "local-es"
       v.cpus = 2
+      v.memory = 2048
     end
   end
 

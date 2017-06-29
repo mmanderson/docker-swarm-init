@@ -28,7 +28,7 @@ You need at least 4 cores, 8 cores is recommended.
 
 ### Memory
 
-You need at least 16GB of addressable memory (RAM + swap) to install and run this environment.  I would strongly recommend at least 16GB of free memory, to avoid considerable slowing on your host system.
+You need at least 8GB of addressable memory (RAM + swap) to install and run this environment.  I would strongly recommend at least 16GB of free memory, to avoid considerable slowing on your host system.
 
 
 ### Storage
