@@ -8,9 +8,6 @@ if [ $? -ne 0 ]; then
     exit $error
 fi
 
-echo "Sleep for a little bit to make sure VMs are up before completing provisioning"
-sleep 30s
-
 # Make sure we have the VMs in the known_hosts file
 sshhash=$(grep HashKnownHosts /etc/ssh/ssh_config | grep yes)
 dohash=''
